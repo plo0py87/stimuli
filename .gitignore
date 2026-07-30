@@ -1,0 +1,25 @@
+# Recorded session data (EEG + video) -- large binary data, kept locally
+# only, never pushed to git. Each session can be hundreds of MB to a few GB
+# (raw EEG npz + screen recording mp4 + per-trial splits).
+sessions/
+
+# SEED benchmark dataset + processed derivatives -- large (GBs), was only
+# used for an early cross-subject generalization comparison. Not needed to
+# run the current own-data pipeline.
+SEED/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Claude Code local settings (machine-specific, not project config)
+.claude/
