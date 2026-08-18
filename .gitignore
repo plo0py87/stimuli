@@ -8,16 +8,33 @@ sessions/
 # run the current own-data pipeline.
 SEED/
 
-# REFED project -- extracted feature caches and prediction dumps (250MB+,
-# regenerate via refed_extract_libeer.py / add_lds.py / the *_persubj*.py
-# training scripts), run logs, and the per-trial/per-subject PNG tiles that
-# are already embedded as base64 inside refed/dashboard.html. The curated
-# report figures (fig_*.png) and the HTML deliverables themselves are kept.
+# REFED project -- the repo carries only the code that actually runs models.
+# Everything below stays local: regenerable outputs (feature caches ~250MB,
+# prediction dumps, result JSON, figures, logs) and the exploratory /
+# figure-making / dashboard scripts that are not needed to reproduce results.
+# See refed/README.md section 7.
 refed/*.npz
 refed/*.log
 refed/*_log.txt
 refed/train_log*.txt
-refed/dash_*.png
+refed/*.png
+refed/*.json
+refed/*.html
+
+refed/build_*.py
+refed/dash_*.py
+refed/fig_*.py
+refed/diag_*.py
+refed/tsne_*.py
+refed/umap_*.py
+refed/silhouette_*.py
+refed/saliency_whole.py
+refed/replot_saliency.py
+refed/refed_montage_figures.py
+refed/single_subject_regress.py
+refed/seed_montage_classify.py
+refed/seed_montage_classify_trunc.py
+refed/seed_montage_classify_persubj.py
 
 # Python
 __pycache__/
