@@ -1,0 +1,646 @@
+<title>REFED · 32 位受試者互動儀表板</title>
+<style>
+:root {
+  --bg: #f6f2ea;
+  --panel: #fffdf8;
+  --panel-2: #efe9dc;
+  --ink: #1c2320;
+  --ink-soft: #55605a;
+  --grid: #d8d0bf;
+  --dgcnn: #2f5f5c;
+  --svm: #b8873a;
+  --flag: #c1443f;
+  --serif: Georgia, Cambria, "Times New Roman", serif;
+  --sans: -apple-system, "Segoe UI", "Noto Sans TC", "PingFang TC", "Microsoft JhengHei", sans-serif;
+  --mono: "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14181a; --panel: #1b201f; --panel-2: #202624; --ink: #ece7db;
+    --ink-soft: #a9b0a5; --grid: #33342c; --dgcnn: #7fb3ac; --svm: #d9ab5c; --flag: #e0776f;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #14181a; --panel: #1b201f; --panel-2: #202624; --ink: #ece7db;
+  --ink-soft: #a9b0a5; --grid: #33342c; --dgcnn: #7fb3ac; --svm: #d9ab5c; --flag: #e0776f;
+}
+:root[data-theme="light"] {
+  --bg: #f6f2ea; --panel: #fffdf8; --panel-2: #efe9dc; --ink: #1c2320;
+  --ink-soft: #55605a; --grid: #d8d0bf; --dgcnn: #2f5f5c; --svm: #b8873a; --flag: #c1443f;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--sans);
+  line-height: 1.5; font-size: 15px;
+}
+h1, h2, h3 { font-family: var(--serif); font-weight: 400; text-wrap: balance; margin: 0; }
+code, .mono { font-family: var(--mono); }
+.tabular { font-variant-numeric: tabular-nums; }
+a { color: var(--dgcnn); }
+
+.page { max-width: 1180px; margin: 0 auto; padding: 28px 22px 80px; }
+
+header.top { border-bottom: 1px solid var(--grid); padding-bottom: 18px; margin-bottom: 20px; }
+header.top h1 { font-size: 1.65rem; letter-spacing: -0.01em; }
+header.top p { color: var(--ink-soft); max-width: 68ch; margin: 6px 0 0; font-size: 0.95rem; }
+
+.modebar { display: flex; gap: 8px; margin: 18px 0 22px; flex-wrap: wrap; align-items: center; }
+.seg { display: inline-flex; background: var(--panel-2); border: 1px solid var(--grid); border-radius: 8px; padding: 3px; gap: 2px; }
+.seg button {
+  font-family: var(--sans); font-size: 0.86rem; padding: 7px 14px; border-radius: 6px; border: none;
+  background: transparent; color: var(--ink-soft); cursor: pointer; transition: background .15s, color .15s;
+}
+.seg button.active { background: var(--panel); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.08); font-weight: 600; }
+.seg button:hover:not(.active) { color: var(--ink); }
+.seg button:focus-visible { outline: 2px solid var(--dgcnn); outline-offset: 1px; }
+
+.legend-note { font-size: 0.8rem; color: var(--ink-soft); font-family: var(--mono); margin-left: auto; }
+.swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin: 0 4px 0 12px; vertical-align: middle; }
+.swatch:first-of-type { margin-left: 0; }
+.sw-dgcnn { background: var(--dgcnn); }
+.sw-svm { background: var(--svm); }
+
+section.view { display: none; }
+section.view.active { display: block; }
+
+/* subject grid */
+.subject-grid { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 22px; }
+.chip {
+  width: 38px; height: 34px; display: flex; align-items: center; justify-content: center;
+  border-radius: 6px; border: 1px solid var(--grid); background: var(--panel); color: var(--ink-soft);
+  font-family: var(--mono); font-size: 0.82rem; cursor: pointer; transition: all .12s; position: relative;
+}
+.chip:hover { border-color: var(--dgcnn); color: var(--ink); }
+.chip.selected { background: var(--dgcnn); color: var(--bg); border-color: var(--dgcnn); font-weight: 600; }
+.chip.flagged::after {
+  content: ""; position: absolute; top: -3px; right: -3px; width: 8px; height: 8px;
+  border-radius: 50%; background: var(--flag); border: 1.5px solid var(--bg);
+}
+.chip:focus-visible { outline: 2px solid var(--dgcnn); outline-offset: 2px; }
+
+.panel { background: var(--panel); border: 1px solid var(--grid); border-radius: 8px; padding: 18px 20px; }
+.panel + .panel { margin-top: 16px; }
+.panel h3 { font-size: 1.05rem; margin-bottom: 10px; }
+.panel .sub { color: var(--ink-soft); font-size: 0.85rem; margin: -4px 0 12px; }
+
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+@media (max-width: 760px) { .grid2, .grid4 { grid-template-columns: 1fr; } }
+
+.imgwrap { text-align: center; }
+.imgwrap img { max-width: 100%; height: auto; border-radius: 6px; }
+.imgwrap .cap { font-family: var(--mono); font-size: 0.72rem; color: var(--ink-soft); margin-top: 4px; }
+
+.trial-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+
+.stat-row { display: flex; gap: 18px; flex-wrap: wrap; margin: 8px 0 4px; }
+.stat { font-size: 0.85rem; }
+.stat .k { color: var(--ink-soft); font-family: var(--mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: .04em; }
+.stat .v { font-family: var(--mono); font-size: 1.05rem; }
+
+.flag-callout {
+  background: color-mix(in srgb, var(--flag) 12%, var(--panel)); border: 1px solid color-mix(in srgb, var(--flag) 40%, var(--grid));
+  border-left: 3px solid var(--flag); border-radius: 4px; padding: 10px 14px; font-size: 0.85rem; margin-top: 12px;
+}
+
+/* metric mode filter bar */
+.filterbar { display: flex; gap: 14px; flex-wrap: wrap; align-items: flex-end; margin-bottom: 18px; }
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field label { font-family: var(--mono); font-size: 0.7rem; text-transform: uppercase; letter-spacing: .05em; color: var(--ink-soft); }
+.field select {
+  font-family: var(--sans); font-size: 0.88rem; padding: 7px 10px; border-radius: 6px;
+  border: 1px solid var(--grid); background: var(--panel); color: var(--ink);
+}
+.field select:focus-visible { outline: 2px solid var(--dgcnn); outline-offset: 1px; }
+
+.dim-toggle { display: inline-flex; gap: 6px; }
+.dim-toggle button {
+  font-family: var(--mono); font-size: 0.78rem; padding: 5px 10px; border-radius: 5px; border: 1px solid var(--grid);
+  background: var(--panel); color: var(--ink-soft); cursor: pointer;
+}
+.dim-toggle button.active { background: var(--dgcnn); color: var(--bg); border-color: var(--dgcnn); }
+
+svg.chart text { fill: var(--ink); font-family: var(--mono); }
+svg.chart .axis-line { stroke: var(--grid); }
+svg.chart .gridline { stroke: var(--grid); stroke-width: .6; }
+svg.chart .bar-label { fill: var(--ink-soft); font-size: 9px; }
+.chart-wrap { overflow-x: auto; }
+.bar:hover { filter: brightness(1.12); }
+.reftick { stroke: var(--flag); stroke-width: 1.4; stroke-dasharray: 4 3; }
+
+footer.note { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--grid); font-family: var(--mono); font-size: 0.74rem; color: var(--ink-soft); }
+
+.info-toggle-btn {
+  font-family: var(--sans); font-size: 0.82rem; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--grid);
+  background: var(--panel); color: var(--ink-soft); cursor: pointer;
+}
+.info-toggle-btn:hover { color: var(--ink); border-color: var(--dgcnn); }
+
+.imgwrap img, figure img { cursor: zoom-in; transition: filter .12s; }
+.imgwrap img:hover, figure img:hover { filter: brightness(1.05); }
+#lightbox {
+  display: none; position: fixed; inset: 0; background: rgba(0,0,0,.86);
+  z-index: 1000; align-items: center; justify-content: center; padding: 28px;
+  cursor: zoom-out; overflow: auto;
+}
+#lightbox.open { display: flex; }
+#lightbox img {
+  max-width: 96vw; max-height: 96vh; border-radius: 6px;
+  box-shadow: 0 12px 50px rgba(0,0,0,.55); cursor: zoom-in;
+}
+#lightbox img.zoomed { cursor: grab; border-radius: 2px; }
+#lightbox img.panning { cursor: grabbing; }
+#lightbox .lightbox-hint {
+  position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+  font-family: var(--mono); font-size: 0.72rem; color: #d8d8d8; opacity: .7;
+  background: rgba(0,0,0,.4); padding: 3px 10px; border-radius: 10px;
+}
+</style>
+
+<div class="page">
+  <header class="top">
+    <h1>REFED：32 位受試者互動儀表板</h1>
+    <p>Per-subject 訓練 · 4 組電極配置 · DGCNN vs SVM</p>
+  </header>
+
+  <div class="modebar">
+    <div class="seg" role="tablist">
+      <button id="tab-subject" class="active" role="tab">按受試者</button>
+      <button id="tab-metric" role="tab">指標比較</button>
+      <button id="tab-seed" role="tab">SEED 公平比較</button>
+    </div>
+    <div class="seg" role="tablist" id="feat-toggle" style="margin-left:4px;">
+      <button data-v="lds" class="active" role="tab">DE_LDS</button>
+      <button data-v="de" role="tab">plain DE</button>
+    </div>
+    <span class="legend-note">
+      <span class="swatch sw-dgcnn"></span>DGCNN
+      <span class="swatch sw-svm"></span>SVM
+    </span>
+  </div>
+
+  <section id="view-subject" class="view active">
+    <div class="subject-grid" id="subject-grid"></div>
+    <div id="subject-detail"></div>
+  </section>
+
+  <section id="view-metric" class="view">
+    <div class="filterbar">
+      <div class="field">
+        <label for="f-task">指標</label>
+        <select id="f-task">
+          <option value="cls.acc">分類準確率 (accuracy)</option>
+          <option value="cls.macro">分類 macro recall</option>
+          <option value="reg.ccc">回歸 CCC</option>
+          <option value="reg.acc3">回歸 acc3（門檻切三類）</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="f-montage">電極配置</label>
+        <select id="f-montage"></select>
+      </div>
+      <div class="field">
+        <label>維度</label>
+        <div class="dim-toggle" id="f-dim">
+          <button data-v="valence" class="active">valence</button>
+          <button data-v="arousal">arousal</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>模型</label>
+        <div class="dim-toggle" id="f-model">
+          <button data-v="both" class="active">both</button>
+          <button data-v="dgcnn">DGCNN</button>
+          <button data-v="svm">SVM</button>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <h3 id="montage-compare-title"></h3>
+      <div class="chart-wrap"><div id="montage-compare-chart"></div></div>
+    </div>
+    <div class="panel">
+      <h3 id="metric-title"></h3>
+      <div class="chart-wrap"><div id="metric-chart"></div></div>
+    </div>
+  </section>
+
+  <section id="view-seed" class="view">
+    <div class="panel">
+      <h3 id="seed-title"></h3>
+      <p class="sub" id="seed-sub"></p>
+      <div id="seed-table"></div>
+    </div>
+  </section>
+
+  <footer class="note">
+    REFED (Ning et al.) · SEED (Zheng &amp; Lu)
+  </footer>
+</div>
+
+<div id="lightbox">
+  <img id="lightbox-img" src="" alt="enlarged view">
+  <div class="lightbox-hint" id="lightbox-hint">滾輪縮放 · Esc 關閉</div>
+</div>
+
+<script>
+const DASH = __DASH_JSON__;
+const IMAGES = __IMAGES_JSON__;
+
+function img(key) { return `data:image/png;base64,${IMAGES[key]}`; }
+function fmt(x, d=3) { return (x === null || x === undefined || Number.isNaN(x)) ? "—" : x.toFixed(d); }
+
+// ---------------- click-to-zoom lightbox (wheel-zoom + drag-to-pan) for every image ----------------
+const lightbox = document.getElementById("lightbox");
+const lightboxImg = document.getElementById("lightbox-img");
+let zoomScale = 1;
+let baseW = 0, baseH = 0;
+let didDrag = false;
+let isPanning = false, panStartX = 0, panStartY = 0, scrollStartX = 0, scrollStartY = 0;
+
+function openLightbox(src, alt) {
+  zoomScale = 1;
+  lightboxImg.classList.remove("zoomed", "panning");
+  lightboxImg.style.width = "";
+  lightboxImg.style.height = "";
+  lightboxImg.src = src;
+  lightboxImg.alt = alt || "";
+  lightbox.classList.add("open");
+  lightboxImg.onload = () => {
+    const r = lightboxImg.getBoundingClientRect();
+    baseW = r.width; baseH = r.height;
+  };
+}
+
+function closeLightbox() {
+  lightbox.classList.remove("open");
+  lightboxImg.src = "";
+  zoomScale = 1;
+  lightboxImg.classList.remove("zoomed", "panning");
+  lightboxImg.style.width = "";
+  lightboxImg.style.height = "";
+}
+
+function applyZoom(cx, cy) {
+  if (!baseW || !baseH) return;
+  const prevScrollLeft = lightbox.scrollLeft, prevScrollTop = lightbox.scrollTop;
+  const prevW = lightboxImg.getBoundingClientRect().width || baseW;
+  lightboxImg.style.width = (baseW * zoomScale) + "px";
+  lightboxImg.style.height = (baseH * zoomScale) + "px";
+  if (zoomScale > 1) {
+    lightboxImg.classList.add("zoomed");
+    // keep the point under the cursor stationary while zooming
+    const ratio = (baseW * zoomScale) / prevW;
+    lightbox.scrollLeft = (prevScrollLeft + cx) * ratio - cx;
+    lightbox.scrollTop = (prevScrollTop + cy) * ratio - cy;
+  } else {
+    lightboxImg.classList.remove("zoomed");
+    lightboxImg.style.width = "";
+    lightboxImg.style.height = "";
+  }
+}
+
+document.body.addEventListener("click", (e) => {
+  if (didDrag) { didDrag = false; return; }
+  const clickedImg = e.target.closest("img");
+  if (clickedImg && clickedImg.id !== "lightbox-img") {
+    openLightbox(clickedImg.src, clickedImg.alt);
+  } else if (lightbox.classList.contains("open")) {
+    if (clickedImg && clickedImg.id === "lightbox-img" && zoomScale > 1) return; // clicking a zoomed image pans, doesn't close
+    closeLightbox();
+  }
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && lightbox.classList.contains("open")) closeLightbox();
+});
+lightbox.addEventListener("wheel", (e) => {
+  if (!lightbox.classList.contains("open")) return;
+  e.preventDefault();
+  const rect = lightboxImg.getBoundingClientRect();
+  const cx = e.clientX - rect.left + lightbox.scrollLeft - (lightbox.clientWidth - rect.width) / 2;
+  const cy = e.clientY - rect.top + lightbox.scrollTop - (lightbox.clientHeight - rect.height) / 2;
+  const factor = e.deltaY < 0 ? 1.2 : 1 / 1.2;
+  zoomScale = Math.min(6, Math.max(1, zoomScale * factor));
+  applyZoom(Math.max(0, cx), Math.max(0, cy));
+}, { passive: false });
+lightboxImg.addEventListener("mousedown", (e) => {
+  if (zoomScale <= 1) return;
+  isPanning = true;
+  panStartX = e.clientX; panStartY = e.clientY;
+  scrollStartX = lightbox.scrollLeft; scrollStartY = lightbox.scrollTop;
+  lightboxImg.classList.add("panning");
+  e.preventDefault();
+});
+window.addEventListener("mousemove", (e) => {
+  if (!isPanning) return;
+  if (Math.abs(e.clientX - panStartX) > 3 || Math.abs(e.clientY - panStartY) > 3) didDrag = true;
+  lightbox.scrollLeft = scrollStartX - (e.clientX - panStartX);
+  lightbox.scrollTop = scrollStartY - (e.clientY - panStartY);
+});
+window.addEventListener("mouseup", () => {
+  if (isPanning) { isPanning = false; lightboxImg.classList.remove("panning"); }
+});
+
+// ---------------- tabs ----------------
+const views = { subject: document.getElementById("view-subject"),
+               metric: document.getElementById("view-metric"),
+               seed: document.getElementById("view-seed") };
+const tabs = { subject: document.getElementById("tab-subject"),
+              metric: document.getElementById("tab-metric"),
+              seed: document.getElementById("tab-seed") };
+function setMode(mode) {
+  Object.keys(views).forEach(k => {
+    views[k].classList.toggle("active", k === mode);
+    tabs[k].classList.toggle("active", k === mode);
+  });
+}
+tabs.subject.addEventListener("click", () => setMode("subject"));
+tabs.metric.addEventListener("click", () => { setMode("metric"); renderMetric(); });
+tabs.seed.addEventListener("click", () => { setMode("seed"); renderSeed(); });
+
+// ---------------- feature-type toggle (DE_LDS vs plain DE) ----------------
+let currentFeat = "lds";
+document.getElementById("feat-toggle").querySelectorAll("button").forEach(b => {
+  b.addEventListener("click", () => {
+    currentFeat = b.dataset.v;
+    document.getElementById("feat-toggle").querySelectorAll("button").forEach(x => x.classList.toggle("active", x === b));
+    if (views.subject.classList.contains("active")) renderSubject(selectedSubject);
+    if (views.metric.classList.contains("active")) renderMetric();
+    if (views.seed.classList.contains("active")) renderSeed();
+  });
+});
+
+// ---------------- subject grid ----------------
+const grid = document.getElementById("subject-grid");
+let selectedSubject = 9;
+DASH.subjects.forEach(sub => {
+  const b = document.createElement("button");
+  b.className = "chip" + (DASH.flaggedSubjects.includes(sub) ? " flagged" : "");
+  b.textContent = sub;
+  b.setAttribute("aria-label", `subject ${sub}`);
+  b.addEventListener("click", () => selectSubject(sub));
+  b.dataset.sub = sub;
+  grid.appendChild(b);
+});
+
+function selectSubject(sub) {
+  selectedSubject = sub;
+  [...grid.children].forEach(c => c.classList.toggle("selected", Number(c.dataset.sub) === sub));
+  renderSubject(sub);
+}
+
+// ---------------- SVG bar chart helper ----------------
+function svgGroupedBars(container, {categories, series, width, height, yMax, yLabel, refValue, highlightLast}) {
+  // series: [{name, color, values:[...same length as categories]}]
+  const pad = {l: 44, r: 14, t: 14, b: 36};
+  const w = width - pad.l - pad.r, h = height - pad.t - pad.b;
+  const n = categories.length, s = series.length;
+  const groupW = w / n, barW = Math.min(26, (groupW * 0.7) / s), gap = 3;
+  yMax = yMax || Math.max(0.001, ...series.flatMap(sr => sr.values.map(v => Math.abs(v || 0)))) * 1.15;
+  const yMin = Math.min(0, ...series.flatMap(sr => sr.values.map(v => v || 0))) * 1.15;
+  const y0 = pad.t + h * (yMax / (yMax - yMin));
+  const yScale = v => pad.t + h * (yMax - v) / (yMax - yMin);
+
+  let svg = `<svg class="chart" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`;
+  // gridlines
+  const ticks = 4;
+  for (let i = 0; i <= ticks; i++) {
+    const v = yMin + (yMax - yMin) * i / ticks;
+    const yy = yScale(v);
+    svg += `<line class="gridline" x1="${pad.l}" x2="${width-pad.r}" y1="${yy}" y2="${yy}"/>`;
+    svg += `<text x="${pad.l-8}" y="${yy+3}" font-size="9" text-anchor="end">${v.toFixed(2)}</text>`;
+  }
+  if (highlightLast && n > 1) {
+    const divX = pad.l + groupW * (n - 1);
+    svg += `<line x1="${divX}" x2="${divX}" y1="${pad.t}" y2="${height-pad.b}" stroke="var(--ink-soft)" stroke-width="1" stroke-dasharray="2 3"/>`;
+  }
+  svg += `<line class="axis-line" x1="${pad.l}" x2="${width-pad.r}" y1="${y0}" y2="${y0}"/>`;
+  if (refValue !== undefined && refValue !== null) {
+    const ry = yScale(refValue);
+    svg += `<line class="reftick" x1="${pad.l}" x2="${width-pad.r}" y1="${ry}" y2="${ry}"/>`;
+    svg += `<text x="${width-pad.r}" y="${ry-4}" font-size="8.5" text-anchor="end" fill="var(--flag)">baseline ${refValue.toFixed(2)}</text>`;
+  }
+  categories.forEach((cat, ci) => {
+    const isLast = highlightLast && ci === n - 1;
+    const gx = pad.l + groupW * ci + groupW/2;
+    series.forEach((sr, si) => {
+      const v = sr.values[ci];
+      if (v === null || v === undefined) return;
+      const bx = gx - (s*barW + (s-1)*gap)/2 + si*(barW+gap);
+      const by = Math.min(yScale(v), y0);
+      const bh = Math.abs(yScale(v) - y0);
+      const op = isLast ? ` opacity="1" stroke="var(--ink)" stroke-width="1"` : "";
+      svg += `<rect class="bar" x="${bx}" y="${by}" width="${barW}" height="${Math.max(bh,0.5)}" fill="${sr.color}"${op}><title>${cat} ${sr.name}: ${v.toFixed(3)}</title></rect>`;
+    });
+    svg += `<text class="bar-label" x="${gx}" y="${height-pad.b+14}" text-anchor="middle"${isLast ? ' font-weight="700" fill="var(--ink)"' : ""}>${cat}</text>`;
+  });
+  if (yLabel) svg += `<text x="14" y="${pad.t+8}" font-size="9" fill="var(--ink-soft)">${yLabel}</text>`;
+  svg += `</svg>`;
+  container.innerHTML = svg;
+}
+
+// ---------------- subject detail render ----------------
+function renderSubject(sub) {
+  const rec = DASH.perSubject[sub];
+  const flagged = DASH.flaggedSubjects.includes(sub);
+  const el = document.getElementById("subject-detail");
+  const featLabel = DASH.featLabel[currentFeat];
+
+  const montCats = DASH.montages.map(m => DASH.montageLabel[m]);
+  function seriesFor(taskKey, dim) {
+    const [task, metric] = taskKey.split(".");
+    return [
+      {name: "DGCNN", color: "var(--dgcnn)",
+       values: DASH.montages.map(m => rec["dgcnn_" + currentFeat][task][m][dim][metric])},
+      {name: "SVM", color: "var(--svm)",
+       values: DASH.montages.map(m => rec["svm_" + currentFeat][task][m][dim][metric])},
+    ];
+  }
+
+  el.innerHTML = `
+    <div class="grid2">
+      <div class="panel">
+        <h3>降維視覺化（in-session，這個人自己的資料）</h3>
+        <div style="font-family:var(--mono);font-size:.72rem;color:var(--ink-soft);margin-bottom:4px;">t-SNE</div>
+        <div class="grid2">
+          <div class="imgwrap"><img src="${img('tsne_'+sub+'_de')}" alt="t-SNE DE"><div class="cap">plain DE</div></div>
+          <div class="imgwrap"><img src="${img('tsne_'+sub+'_lds')}" alt="t-SNE LDS"><div class="cap">DE_LDS</div></div>
+        </div>
+        <div style="font-family:var(--mono);font-size:.72rem;color:var(--ink-soft);margin:10px 0 4px;">UMAP</div>
+        <div class="grid2">
+          <div class="imgwrap"><img src="${img('umap_'+sub+'_de')}" alt="UMAP DE"><div class="cap">plain DE</div></div>
+          <div class="imgwrap"><img src="${img('umap_'+sub+'_lds')}" alt="UMAP LDS"><div class="cap">DE_LDS</div></div>
+        </div>
+        <div class="stat-row">
+          <div class="stat"><div class="k">t-SNE DE silhouette</div><div class="v tabular">${fmt(rec.tsne.de.sil_emb)}</div></div>
+          <div class="stat"><div class="k">t-SNE LDS silhouette</div><div class="v tabular">${fmt(rec.tsne.lds.sil_emb)}</div></div>
+          <div class="stat"><div class="k">UMAP DE silhouette</div><div class="v tabular">${fmt(rec.umap.de.sil_emb)}</div></div>
+          <div class="stat"><div class="k">UMAP LDS silhouette</div><div class="v tabular">${fmt(rec.umap.lds.sil_emb)}</div></div>
+          <div class="stat"><div class="k">n samples</div><div class="v tabular">${rec.tsne.lds.n}</div></div>
+        </div>
+      </div>
+      <div class="panel">
+        <h3>原始 joystick AV 軌跡</h3>
+        <div class="imgwrap"><img src="${img('av_'+sub)}" alt="AV trajectory"></div>
+        ${flagged ? `<div class="flag-callout">⚠ 資料品質可疑（joystick 疑似卡邊界）</div>` : ""}
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>四組電極：分類準確率 &amp; 回歸 CCC，SVM vs DGCNN（${featLabel}）</h3>
+      <p class="sub">維度：
+        <span class="dim-toggle" id="detail-dim">
+          <button data-v="valence" class="active">valence</button>
+          <button data-v="arousal">arousal</button>
+        </span>
+      </p>
+      <div class="grid2">
+        <div>
+          <div style="font-family:var(--mono);font-size:.78rem;color:var(--ink-soft);margin-bottom:4px;">3-class accuracy</div>
+          <div id="detail-chart-acc"></div>
+        </div>
+        <div>
+          <div style="font-family:var(--mono);font-size:.78rem;color:var(--ink-soft);margin-bottom:4px;">CCC</div>
+          <div id="detail-chart-ccc"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Test set 回歸曲線（DGCNN，${featLabel}）</h3>
+      <div class="trial-grid">
+        ${(rec["regTrials_" + currentFeat] || []).slice().sort((a, b) => a.vid - b.vid).map(t => `
+          <div class="imgwrap">
+            <img src="${img('reg_'+sub+'_'+currentFeat+'_t'+t.rank)}" alt="regression curve, clip ${t.vid}">
+            <div class="cap tabular">clip ${t.vid}　CCC=${t.ccc.toFixed(3)}</div>
+          </div>`).join("")}
+      </div>
+    </div>
+  `;
+
+  let detailDim = "valence";
+  function redrawDetail() {
+    svgGroupedBars(document.getElementById("detail-chart-acc"),
+      {categories: montCats, series: seriesFor("cls.acc", detailDim), width: 460, height: 220, yMax: 1});
+    svgGroupedBars(document.getElementById("detail-chart-ccc"),
+      {categories: montCats, series: seriesFor("reg.ccc", detailDim), width: 460, height: 220});
+  }
+  document.getElementById("detail-dim").querySelectorAll("button").forEach(b => {
+    b.addEventListener("click", () => {
+      detailDim = b.dataset.v;
+      document.getElementById("detail-dim").querySelectorAll("button").forEach(x => x.classList.toggle("active", x === b));
+      redrawDetail();
+    });
+  });
+  redrawDetail();
+}
+
+// ---------------- metric explorer ----------------
+const montSel = document.getElementById("f-montage");
+DASH.montages.forEach(m => {
+  const o = document.createElement("option");
+  o.value = m; o.textContent = DASH.montageLabel[m];
+  montSel.appendChild(o);
+});
+let metricDim = "valence", metricModel = "both";
+document.getElementById("f-dim").querySelectorAll("button").forEach(b => {
+  b.addEventListener("click", () => {
+    metricDim = b.dataset.v;
+    document.getElementById("f-dim").querySelectorAll("button").forEach(x => x.classList.toggle("active", x === b));
+    renderMetric();
+  });
+});
+document.getElementById("f-model").querySelectorAll("button").forEach(b => {
+  b.addEventListener("click", () => {
+    metricModel = b.dataset.v;
+    document.getElementById("f-model").querySelectorAll("button").forEach(x => x.classList.toggle("active", x === b));
+    renderMetric();
+  });
+});
+document.getElementById("f-task").addEventListener("change", renderMetric);
+montSel.addEventListener("change", renderMetric);
+
+const TASK_LABEL = {"cls.acc": "分類準確率", "cls.macro": "分類 macro recall",
+                    "reg.ccc": "回歸 CCC", "reg.acc3": "回歸 acc3"};
+
+function mean(arr) { return arr.reduce((a, b) => a + b, 0) / arr.length; }
+
+function renderMetric() {
+  const taskKey = document.getElementById("f-task").value;
+  const [task, metric] = taskKey.split(".");
+  const montage = montSel.value;
+  const cats = DASH.subjects.map(String).concat(["平均"]);
+
+  // ---- four-montage average comparison (32-subject mean per montage) ----
+  const mcSeries = [];
+  if (metricModel === "both" || metricModel === "dgcnn") {
+    mcSeries.push({name: "DGCNN", color: "var(--dgcnn)", values: DASH.montages.map(m =>
+      mean(DASH.subjects.map(s => DASH.perSubject[s]["dgcnn_" + currentFeat][task][m][metricDim][metric])))});
+  }
+  if (metricModel === "both" || metricModel === "svm") {
+    mcSeries.push({name: "SVM", color: "var(--svm)", values: DASH.montages.map(m =>
+      mean(DASH.subjects.map(s => DASH.perSubject[s]["svm_" + currentFeat][task][m][metricDim][metric])))});
+  }
+  document.getElementById("montage-compare-title").textContent =
+    `四組電極平均${TASK_LABEL[taskKey]}比較 · ${metricDim} · ${DASH.featLabel[currentFeat]}`;
+  svgGroupedBars(document.getElementById("montage-compare-chart"),
+    {categories: DASH.montages.map(m => DASH.montageLabel[m]), series: mcSeries,
+     width: 620, height: 260});
+
+  const series = [];
+  if (metricModel === "both" || metricModel === "dgcnn") {
+    const vals = DASH.subjects.map(s => DASH.perSubject[s]["dgcnn_" + currentFeat][task][montage][metricDim][metric]);
+    series.push({name: "DGCNN", color: "var(--dgcnn)", values: vals.concat([mean(vals)])});
+  }
+  if (metricModel === "both" || metricModel === "svm") {
+    const vals = DASH.subjects.map(s => DASH.perSubject[s]["svm_" + currentFeat][task][montage][metricDim][metric]);
+    series.push({name: "SVM", color: "var(--svm)", values: vals.concat([mean(vals)])});
+  }
+  document.getElementById("metric-title").textContent =
+    `${DASH.montageLabel[montage]} · ${metricDim} · ${TASK_LABEL[taskKey]} · ${DASH.featLabel[currentFeat]}`;
+
+  svgGroupedBars(document.getElementById("metric-chart"),
+    {categories: cats, series, width: Math.max(900, cats.length*22), height: 320,
+     highlightLast: true});
+}
+
+// ---------------- SEED fair comparison ----------------
+// Both sides here are genuine per-subject (one DGCNN per subject, own trials
+// only, never trained on the target subject's held-out clip). No pooled
+// numbers -- REFED's pooled mode trains on the target subject's own other
+// clips too, so it isn't a clean comparison point; see refed_montage_regress.py.
+function renderSeed() {
+  const sf = DASH.seedFair[currentFeat];
+  const rSec = DASH.refedTrialSec, sSec = DASH.seedTrialSec;
+  document.getElementById("seed-title").textContent =
+    `SEED vs REFED，per-subject（${DASH.featLabel[currentFeat]}）`;
+  document.getElementById("seed-sub").textContent =
+    `SEED trial 截短至 ${rSec}s（REFED 平均長度，原長 ${sSec}s）`;
+
+  const tdL = 'style="padding:8px 6px;"';
+  const tdR = 'class="tabular" style="text-align:right;padding:8px 6px;"';
+  const tdRBold = 'class="tabular" style="text-align:right;padding:8px 6px;font-weight:600;"';
+  let rows = "";
+  DASH.montages.forEach(m => {
+    const refedAcc = mean(DASH.subjects.map(s => DASH.perSubject[s]["dgcnn_" + currentFeat].cls[m].valence.acc));
+    rows += `<tr>
+      <td ${tdL}>${DASH.montageLabel[m]}</td>
+      <td ${tdR}>${fmt(sf[m].acc)}</td>
+      <td ${tdRBold}>${fmt(refedAcc)}</td>
+    </tr>`;
+  });
+  document.getElementById("seed-table").innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:.9rem;">
+      <thead><tr style="border-bottom:1px solid var(--grid);">
+        <th style="text-align:left;padding:8px 6px;">Montage</th>
+        <th style="text-align:right;padding:8px 6px;">SEED 截短到 ${rSec}s, per-subject</th>
+        <th style="text-align:right;padding:8px 6px;">REFED, per-subject（32 人平均）</th>
+      </tr></thead>
+      <tbody>${rows}</tbody>
+    </table>`;
+}
+
+// ---------------- init ----------------
+selectSubject(9);
+</script>

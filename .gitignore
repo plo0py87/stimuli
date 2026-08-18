@@ -8,6 +8,17 @@ sessions/
 # run the current own-data pipeline.
 SEED/
 
+# REFED project -- extracted feature caches and prediction dumps (250MB+,
+# regenerate via refed_extract_libeer.py / add_lds.py / the *_persubj*.py
+# training scripts), run logs, and the per-trial/per-subject PNG tiles that
+# are already embedded as base64 inside refed/dashboard.html. The curated
+# report figures (fig_*.png) and the HTML deliverables themselves are kept.
+refed/*.npz
+refed/*.log
+refed/*_log.txt
+refed/train_log*.txt
+refed/dash_*.png
+
 # Python
 __pycache__/
 *.pyc
