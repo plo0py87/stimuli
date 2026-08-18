@@ -17,6 +17,9 @@ NeurIPS 2025 Datasets & Benchmarks）研究**頭戴式裝置的電極擺放**對
 "C:/Dev/BCI/LibEER/.venv39/Scripts/python.exe" <script>.py
 ```
 
+底下所有指令為了好讀都寫成 `python xxx.py`，**`python` 一律指上面那個 venv 的直譯器**
+（換成你自己的環境路徑）。腳本都用 `Path(__file__)` 定位，所以要在 `refed/` 目錄底下執行。
+
 需要 `torch`（CUDA 版）、`scikit-learn`、`scipy`、`numpy`。模型與前處理函式
 （`DGCNN`、`data_utils.preprocess.lds` / `libeer_bandpass`）來自本 repo 上一層的
 `emotion_model/`（vendored LibEER 副本）；每個腳本開頭的 `sys.path.insert(0, ...)`
@@ -33,7 +36,20 @@ GPU 建議必備。跑 DGCNN 的腳本預設 `--device cuda`，用 CPU 會慢十
 
 REFED 目錄結構需為 `data/<subject>/EEG_videos.mat` 與 `annotations/<subject>_label.mat`。
 
-**換機器時要改路徑**：抽取腳本吃 `--refed-root` / `--seed-root` 參數，或改腳本頂端的預設值。
+**換機器時要改路徑。** 三支抽取腳本吃 `--refed-root` 參數，可以直接在命令列覆蓋：
+
+```bash
+python refed_extract_all.py --refed-root "/your/path/REFED"
+```
+
+但有兩支**沒有**參數，路徑寫死在程式裡，要手動改：
+
+| 檔案 | 位置 | 要改的東西 |
+|---|---|---|
+| `seed_montage_classify_persubj_trunc.py` | 第 36 行 | `SEED_DIR = Path("D:/EEG dataset/SEED/...")` |
+| `svm_reproduce.py` | 第 244 行 | `root = Path("D:/EEG dataset/REFED")` |
+
+（沒有 `--seed-root` 這個參數，別找了。）
 
 ## 3. 完整重現流程
 
@@ -73,9 +89,13 @@ python refed_montage_regress.py --modes per_subject
 # 三分類版本
 python refed_montage_classify.py
 
-# 把預測值夾回合理範圍後重算指標
+# 把預測值夾回合理範圍後重算指標（只處理迴歸，不處理分類）
 python refed_clip_metrics.py
 ```
+
+`refed_clip_metrics.py` 讀的是 `refed_montage_regress.py` 存的 `montage_predictions.npz`，
+輸出 `montage_results_clipped.json`。分類那支存的是 `montage_predictions_cls.npz`，
+不經過這一步。
 
 9 種配置定義在 `refed_montage_regress.py` 的 `MONTAGES`：
 `whole`（62ch，等同 SEED）、`quick20`（19ch，CGX Quick-20）、`headtop`（21ch，全擠頭頂）、
@@ -98,11 +118,16 @@ python svm_persubj_montage.py --features refed_features_libeer.npz     --out svm
 ### 3.5 跨受試者正規化比較（吃 `refed_features.npz`）
 
 ```bash
-python refed_train_dgcnn.py --seed 42
-python refed_train_dgcnn.py --seed 43
-python refed_train_dgcnn.py --seed 44
+python refed_train_dgcnn.py --seed 42 --out refed_results_seed42.json
+python refed_train_dgcnn.py --seed 43 --out refed_results_seed43.json
+python refed_train_dgcnn.py --seed 44 --out refed_results_seed44.json
 python refed_aggregate.py                  # 跨 seed 彙總
 ```
+
+> ⚠️ **`--out` 一定要給。** `refed_train_dgcnn.py` 的 `--out` 預設是 `refed_results.json`
+> —— 不給的話三次會互相覆蓋同一個檔案；而 `refed_aggregate.py` 找的是
+> `refed_results_seed*.json`（可用 `--glob` 改），會直接報
+> `no result files matching` 結束。
 
 REFED 每人只有一個 session，所以「跨 session」只能做成「跨受試者」。
 用 subject-disjoint 4-fold × 3 seeds。
@@ -132,6 +157,8 @@ python tune_dgcnn.py
 ```
 
 記錄 DGCNN 超參數是怎麼選出來的，不是每次重現都要跑。
+**這支沒有任何命令列參數**（連 `--help` 都不會理你，直接開始訓練），
+特徵檔路徑 `refed_features_all64.npz` 寫死在 `main()` 裡。會跑很久。
 
 ---
 
